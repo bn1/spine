@@ -6,7 +6,7 @@ Events =
     for name in evs
       calls[name] or= []
       calls[name].push(callback)
-    @
+    this
 
   one: (ev, callback) ->
     @bind ev, ->
@@ -27,21 +27,21 @@ Events =
   unbind: (ev, callback) ->
     unless ev
       @_callbacks = {}
-      return @
+      return this
 
     list = @_callbacks?[ev]
-    return @ unless list
+    return this unless list
 
     unless callback
       delete @_callbacks[ev]
-      return @
+      return this
 
     for cb, i in list when cb is callback
       list = list.slice()
       list.splice(i, 1)
       @_callbacks[ev] = list
       break
-    @
+    this
 
 Log =
   trace: true
@@ -53,7 +53,7 @@ Log =
     return if typeof console is 'undefined'
     if @logPrefix then args.unshift(@logPrefix)
     console.log(args...)
-    @
+    this
 
 moduleKeywords = ['included', 'extended']
 
@@ -63,14 +63,14 @@ class Module
     for key, value of obj when key not in moduleKeywords
       @::[key] = value
     obj.included?.apply(@)
-    @
+    this
 
   @extend: (obj) ->
     throw('extend(obj) requires obj') unless obj
     for key, value of obj when key not in moduleKeywords
       @[key] = value
     obj.extended?.apply(@)
-    @
+    this
 
   @proxy: (func) ->
     => func.apply(@, arguments)
@@ -85,24 +85,34 @@ class Model extends Module
   @extend Events
 
   @records: {}
+  @crecords: {}
   @attributes: []
 
   @configure: (name, attributes...) ->
     @className  = name
     @records    = {}
+    @crecords   = {}
     @attributes = attributes if attributes.length
     @attributes and= makeArray(@attributes)
     @attributes or=  []
     @unbind()
-    @
+    this
 
   @toString: -> "#{@className}(#{@attributes.join(", ")})"
 
   @find: (id) ->
+    if ("#{id}").match(/c-\d+/)
+      return @findCID(id)
+    
     record = @records[id]
     throw('Unknown record') unless record
     record.clone()
-
+    
+  @findCID: (cid) ->
+    record = @crecords[cid]
+    throw('Unknown record') unless record
+    record.clone()
+    
   @exists: (id) ->
     try
       return @find(id)
@@ -110,18 +120,22 @@ class Model extends Module
       return false
 
   @refresh: (values, options = {}) ->
-    @records = {} if options.clear
+    if options.clear
+      @records  = {}
+      @crecords = {}
+      
     records = @fromJSON(values)
 
     records = [records] unless isArray(records)
 
     for record in records
-      record.newRecord    = false
-      record.id           or= guid()
-      @records[record.id] = record
+      record.id           or= record.cid
+      @records[record.id]   = record
+      
+      @crecords[record.cid] = record
 
     @trigger('refresh', not options.clear and records)
-    @
+    this
 
   @select: (callback) ->
     result = (record for id, record of @records when callback(record))
@@ -201,9 +215,6 @@ class Model extends Module
   @fromForm: ->
     (new this).fromForm(arguments...)
     
-  @guid: ->
-    guid()
-
   # Private
 
   @recordsValues: ->
@@ -214,20 +225,23 @@ class Model extends Module
 
   @cloneArray: (array) ->
     (value.clone() for value in array)
+    
+  @idCounter: 0
+  
+  @uid: ->
+    @idCounter++
 
   # Instance
 
-  newRecord: true
-
   constructor: (atts) ->
     super
-    @ids = []
     @load atts if atts
+    @cid or= 'c-' + @constructor.uid()
 
-  isNew: () ->
-    @newRecord
+  isNew: ->
+    not @exists()
 
-  isValid: () ->
+  isValid: ->
     not @validate()
 
   validate: ->
@@ -238,11 +252,11 @@ class Model extends Module
         @[key](value)
       else
         @[key] = value
-    @
+    this
 
   attributes: ->
     result = {}
-    for key in @constructor.attributes when key of @
+    for key in @constructor.attributes when key of this
       if typeof @[key] is 'function'
         result[key] = @[key]()
       else
@@ -251,8 +265,8 @@ class Model extends Module
     result
 
   eql: (rec) ->
-    rec and rec.constructor is @constructor and
-      (rec.id is @id or @id in rec.ids or rec.id in @ids)
+    rec and rec.constructor is @constructor and 
+      (rec.id is @id or rec.cid is @cid)
 
   save: (options = {}) ->
     unless options.validate is false
@@ -262,7 +276,7 @@ class Model extends Module
         return false
 
     @trigger('beforeSave', options)
-    record = if @newRecord then @create(options) else @update(options)
+    record = if @isNew() then @create(options) else @update(options)
     @trigger('save', options)
     record
 
@@ -275,7 +289,6 @@ class Model extends Module
     @save(options)
 
   changeID: (id) ->
-    @ids.push(@id)
     records = @constructor.records
     records[id] = records[@id]
     delete records[@id]
@@ -285,16 +298,17 @@ class Model extends Module
   destroy: (options = {}) ->
     @trigger('beforeDestroy', options)
     delete @constructor.records[@id]
+    delete @constructor.crecords[@cid]
     @destroyed = true
     @trigger('destroy', options)
     @trigger('change', 'destroy', options)
     @unbind()
-    @
+    this
 
   dup: (newRecord) ->
     result = new @constructor(@attributes())
     if newRecord is false
-      result.newRecord = @newRecord
+      result.cid = @cid
     else
       delete result.id
     result
@@ -303,7 +317,7 @@ class Model extends Module
     Object.create(@)
 
   reload: ->
-    return @ if @newRecord
+    return this if @isNew()
     original = @constructor.find(@id)
     @load(original.attributes())
     original
@@ -336,11 +350,13 @@ class Model extends Module
 
   create: (options) ->
     @trigger('beforeCreate', options)
-    @id          = @constructor.guid() unless @id
-    @newRecord   = false
-    records      = @constructor.records
-    records[@id] = @dup(false)
-    clone        = records[@id].clone()
+    @id          = @constructor.uid() unless @id
+    
+    record       = @dup(false)
+    @constructor.records[@id]   = record
+    @constructor.crecords[@cid] = record
+    
+    clone        = record.clone()
     clone.trigger('create', options)
     clone.trigger('change', 'create', options)
     clone
@@ -473,13 +489,6 @@ isBlank = (value) ->
 
 makeArray = (args) ->
   Array.prototype.slice.call(args, 0)
-
-guid = ->
-  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace /[xy]/g, (c) ->
-    r = Math.random() * 16 | 0
-    v = if c is 'x' then r else r & 3 | 8
-    v.toString 16
-  .toUpperCase()
 
 # Globals
 

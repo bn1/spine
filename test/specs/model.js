@@ -210,9 +210,9 @@ describe("Model", function(){
     expect(asset.attributes()).toEqual({name: "Bob"});
   });
   
-  it("can generate GUID", function(){
+  it("can generate ID", function(){
     var asset = Asset.create({name: "who's in the house?"});
-    expect(asset.id.length).toEqual(36);
+    expect(asset.id).toBeTruthy();
   });
   
   it("can be duplicated", function(){
@@ -270,7 +270,7 @@ describe("Model", function(){
   it("dup should take a newRecord argument, which controls if a new record is returned", function(){
     var asset = Asset.create({name: "hotel california"});    
     expect(asset.dup().id).toBeUndefined();
-    expect(asset.dup().newRecord).toBeTruthy();
+    expect(asset.dup().isNew()).toBeTruthy();
 
     expect(asset.dup(false).id).toBe(asset.id);
     expect(asset.dup(false).newRecord).toBeFalsy();
