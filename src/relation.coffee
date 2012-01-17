@@ -137,6 +137,9 @@ class Instance extends Spine.Module
     @record[@fkey] and @model.exists(@record[@fkey])
     
   update: (value) ->
+    unless value instanceof @model
+      value = new @model(value)
+    value.save() if value.isNew()
     @record.__proto__[@fkey] = value and value.id
 
 class Singleton extends Spine.Module
