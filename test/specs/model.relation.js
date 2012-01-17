@@ -12,7 +12,7 @@ describe("Model.Relation", function(){
     Photo.belongsTo("album", Album);
     
     var album = Album.create();
-    
+
     expect( album.photos() ).toBeTruthy();
     expect( album.photos().all() ).toEqual([]);
     
@@ -41,7 +41,7 @@ describe("Model.Relation", function(){
     Photo.belongsTo("album", Album);
 
     var album = new Album();
-    album.load({id: "1", name: "Beautiful album", 
+    album.load({id: "1", name: "Beautiful album",
                 photo: {id: "2", name: "Beautiful photo", album_id: "1"}});
 
     expect( album.photo() ).toBeTruthy();
@@ -54,7 +54,7 @@ describe("Model.Relation", function(){
 
     var album = new Album();
     album.load({
-                id: "1", name: "Beautiful album", 
+                id: "1", name: "Beautiful album",
                 photos: [{id: "1", name: "Beautiful photo 1", album_id: "1"},
                          {id: "2", name: "Beautiful photo 2", album_id: "1"}]
                });
