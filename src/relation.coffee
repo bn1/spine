@@ -8,7 +8,7 @@ class Collection extends Spine.Module
       @[key] = value
 
   add: (item) ->
-    if item instanceof Array
+    if isArray(item)
       @add i for i in item
     else
       item = @model.find item unless item instanceof @model
@@ -72,7 +72,7 @@ class M2MCollection extends Spine.Module
       @[key] = value
 
   add: (item) ->
-    if item instanceof Array
+    if isArray(item)
       @add i for i in item
 
     else
@@ -137,11 +137,8 @@ class Instance extends Spine.Module
     @record[@fkey] and @model.exists(@record[@fkey])
     
   update: (value) ->
-    unless value instanceof @model
-      value = new @model(value)
-    value.save() if value.isNew()
-    @record[@fkey] = value and value.id
-    
+    @record.__proto__[@fkey] = value and value.id
+
 class Singleton extends Spine.Module
   constructor: (options = {}) ->
     for key, value of options
@@ -193,7 +190,7 @@ Spine.Model.extend
         name: name, model: model, 
         record: record, fkey: fkey
       )
-          
+      
     @::[name] = (value) ->
       association(@).update(value) if value?
       association(@).exists()
