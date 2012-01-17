@@ -50,9 +50,8 @@ Log =
 
   log: (args...) ->
     return unless @trace
-    return if typeof console is 'undefined'
     if @logPrefix then args.unshift(@logPrefix)
-    console.log(args...)
+    console?.log?(args...)
     this
 
 moduleKeywords = ['included', 'extended']
@@ -134,7 +133,7 @@ class Model extends Module
       
       @crecords[record.cid] = record
 
-    @trigger('refresh', not options.clear and records)
+    @trigger('refresh', not options.clear and @cloneArray(records))
     this
 
   @select: (callback) ->
@@ -350,7 +349,7 @@ class Model extends Module
 
   create: (options) ->
     @trigger('beforeCreate', options)
-    @id          = @constructor.uid() unless @id
+    @id          = @cid unless @id
     
     record       = @dup(false)
     @constructor.records[@id]   = record

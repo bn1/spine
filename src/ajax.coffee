@@ -11,10 +11,13 @@ Ajax =
   requests: []
 
   disable: (callback) ->
-    @enabled = false
-    do callback
-    @enabled = true
-
+    if @enabled    
+      @enabled = false
+      do callback
+      @enabled = true
+    else
+      do callback
+    
   requestNext: ->
     next = @requests.shift()
     if next
@@ -183,6 +186,7 @@ Model.Ajax =
     @ajax().fetch(arguments...)
     
   ajaxChange: (record, type, options = {}) ->
+    return if options.ajax is false
     record.ajax()[type](options.ajax, options)
     
 Model.Ajax.Methods = 
