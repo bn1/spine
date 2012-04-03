@@ -100,18 +100,17 @@ class Model extends Module
   @toString: -> "#{@className}(#{@attributes.join(", ")})"
 
   @find: (id) ->
-    if ("#{id}").match(/c-\d+/)
-      return @findCID(id)
-    
     record = @records[id]
+    if !record and ("#{id}").match(/c-\d+/)
+      return @findCID(id)
     throw('Unknown record') unless record
     record.clone()
-    
+
   @findCID: (cid) ->
     record = @crecords[cid]
     throw('Unknown record') unless record
     record.clone()
-    
+
   @exists: (id) ->
     try
       return @find(id)
@@ -122,16 +121,16 @@ class Model extends Module
     if options.clear
       @records  = {}
       @crecords = {}
-      
-    records = @fromJSON(values)
 
+    records = @fromJSON(values)
     records = [records] unless isArray(records)
 
     for record in records
       record.id           or= record.cid
       @records[record.id]   = record
-      
       @crecords[record.cid] = record
+
+    @resetIdCounter()
 
     @trigger('refresh', not options.clear and @cloneArray(records))
     this
@@ -213,7 +212,7 @@ class Model extends Module
 
   @fromForm: ->
     (new this).fromForm(arguments...)
-    
+
   # Private
 
   @recordsValues: ->
@@ -224,18 +223,22 @@ class Model extends Module
 
   @cloneArray: (array) ->
     (value.clone() for value in array)
-    
+
   @idCounter: 0
-  
-  @uid: ->
-    @idCounter++
+
+  @resetIdCounter: ->
+    ids = (model.id for model in @all()).sort()
+    @idCounter = (ids[ids.length - 1] or -1) + 1
+
+  @uid: (prefix = '') ->
+    prefix + @idCounter++
 
   # Instance
 
   constructor: (atts) ->
     super
     @load atts if atts
-    @cid or= 'c-' + @constructor.uid()
+    @cid or= @constructor.uid('c-')
 
   isNew: ->
     not @exists()
@@ -264,8 +267,8 @@ class Model extends Module
     result
 
   eql: (rec) ->
-    rec and rec.constructor is @constructor and 
-      (rec.id is @id or rec.cid is @cid)
+    !!(rec and rec.constructor is @constructor and
+        (rec.cid is @cid) or (rec.id and rec.id is @id))
 
   save: (options = {}) ->
     unless options.validate is false
@@ -279,9 +282,9 @@ class Model extends Module
     @trigger('save', options)
     record
 
-  updateAttribute: (name, value) ->
+  updateAttribute: (name, value, options) ->
     @[name] = value
-    @save()
+    @save(options)
 
   updateAttributes: (atts, options) ->
     @load(atts)
@@ -350,11 +353,11 @@ class Model extends Module
   create: (options) ->
     @trigger('beforeCreate', options)
     @id          = @cid unless @id
-    
+
     record       = @dup(false)
     @constructor.records[@id]   = record
     @constructor.crecords[@cid] = record
-    
+
     clone        = record.clone()
     clone.trigger('create', options)
     clone.trigger('change', 'create', options)
@@ -399,13 +402,14 @@ class Controller extends Module
     @el = $(@el)
 
     @el.addClass(@className) if @className
+    @el.attr(@attributes) if @attributes
 
     @release -> @el.remove()
 
     @events = @constructor.events unless @events
     @elements = @constructor.elements unless @elements
 
-    @delegateEvents() if @events
+    @delegateEvents(@events) if @events
     @refreshElements() if @elements
 
     super
@@ -418,8 +422,8 @@ class Controller extends Module
 
   $: (selector) -> $(selector, @el)
 
-  delegateEvents: ->
-    for key, method of @events
+  delegateEvents: (events) ->
+    for key, method of events
       unless typeof(method) is 'function'
         method = @proxy(@[method])
 
@@ -464,13 +468,13 @@ class Controller extends Module
   replace: (element) ->
     [previous, @el] = [@el, $(element.el or element)]
     previous.replaceWith(@el)
-    @delegateEvents()
+    @delegateEvents(@events)
     @refreshElements()
     @el
 
 # Utilities & Shims
 
-$ = window.jQuery or window.Zepto or (element) -> element
+$ = window?.jQuery or window?.Zepto or (element) -> element
 
 unless typeof Object.create is 'function'
   Object.create = (o) ->
@@ -487,14 +491,14 @@ isBlank = (value) ->
   true
 
 makeArray = (args) ->
-  Array.prototype.slice.call(args, 0)
+  Array::slice.call(args, 0)
 
 # Globals
 
 Spine = @Spine   = {}
 module?.exports  = Spine
 
-Spine.version    = '1.0.5'
+Spine.version    = '1.0.6'
 Spine.isArray    = isArray
 Spine.isBlank    = isBlank
 Spine.$          = $
