@@ -103,12 +103,12 @@ class Model extends Module
     record = @records[id]
     if !record and ("#{id}").match(new RegExp("#{@prefix}\d+"))
       return @findCID(id)
-    throw('Unknown record XX') unless record
+    throw('Unknown record') unless record
     record.clone()
 
   @findCID: (cid) ->
     record = @crecords[cid]
-    throw('Unknown record YY') unless record
+    throw('Unknown record') unless record
     record.clone()
 
   @exists: (id) ->
