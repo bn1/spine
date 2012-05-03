@@ -276,16 +276,15 @@ class Model extends Module
         (rec.cid is @cid) or (rec.id and rec.id is @id))
 
   save: (options = {}) ->
-    trigger = !!options.trigger or true
     unless options.validate is false
       error = @validate()
       if error
-        @trigger('error', error) if trigger
+        @trigger('error', error)
         return false
 
-    @trigger('beforeSave', options) if trigger
+    @trigger('beforeSave', options)
     record = if @isNew() then @create(options) else @update(options)
-    @trigger('save', options) if trigger
+    @trigger('save', options)
     record
 
   updateAttribute: (name, value, options) ->
@@ -304,13 +303,12 @@ class Model extends Module
     @save()
 
   destroy: (options = {}) ->
-    trigger = !!options.trigger or true
-    @trigger('beforeDestroy', options) if trigger
+    @trigger('beforeDestroy', options)
     delete @constructor.records[@id]
     delete @constructor.crecords[@cid]
     @destroyed = true
-    @trigger('destroy', options) if trigger
-    @trigger('change', 'destroy', options) if trigger
+    @trigger('destroy', options)
+    @trigger('change', 'destroy', options)
     @unbind()
     this
 
@@ -349,18 +347,16 @@ class Model extends Module
   # Private
 
   update: (options) ->
-    trigger = !!options.trigger or true
-    @trigger('beforeUpdate', options) if trigger
+    @trigger('beforeUpdate', options)
     records = @constructor.records
     records[@id].load @attributes()
     clone = records[@id].clone()
-    clone.trigger('update', options) if trigger
-    clone.trigger('change', 'update', options) if trigger
+    clone.trigger('update', options)
+    clone.trigger('change', 'update', options)
     clone
 
   create: (options) ->
-    trigger = !!options.trigger or true
-    @trigger('beforeCreate', options) if trigger
+    @trigger('beforeCreate', options)
     @id          = @cid unless @id
 
     record       = @dup(false)
@@ -368,8 +364,8 @@ class Model extends Module
     @constructor.crecords[@cid] = record
 
     clone        = record.clone()
-    clone.trigger('create', options) if trigger
-    clone.trigger('change', 'create', options) if trigger
+    clone.trigger('create', options)
+    clone.trigger('change', 'create', options)
     clone
 
   bind: (events, callback) ->
