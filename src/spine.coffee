@@ -275,6 +275,16 @@ class Model extends Module
 
   save: (options = {}) ->
     trigger = !!options.trigger or true
+    unless options.validate is false
+      error = @validate()
+      if error
+        @trigger('error', error) if trigger
+        return false
+
+    @trigger('beforeSave', options) if trigger
+    record = if @isNew() then @create(options) else @update(options)
+    @trigger('save', options) if trigger
+    record
 
   updateAttribute: (name, value, options) ->
     @[name] = value
@@ -293,6 +303,14 @@ class Model extends Module
 
   destroy: (options = {}) ->
     trigger = !!options.trigger or true
+    @trigger('beforeDestroy', options) if trigger
+    delete @constructor.records[@id]
+    delete @constructor.crecords[@cid]
+    @destroyed = true
+    @trigger('destroy', options) if trigger
+    @trigger('change', 'destroy', options) if trigger
+    @unbind()
+    this
 
   dup: (newRecord) ->
     result = new @constructor(@attributes())
@@ -330,9 +348,27 @@ class Model extends Module
 
   update: (options) ->
     trigger = !!options.trigger or true
+    @trigger('beforeUpdate', options) if trigger
+    records = @constructor.records
+    records[@id].load @attributes()
+    clone = records[@id].clone()
+    clone.trigger('update', options) if trigger
+    clone.trigger('change', 'update', options) if trigger
+    clone
 
   create: (options) ->
     trigger = !!options.trigger or true
+    @trigger('beforeCreate', options) if trigger
+    @id          = @cid unless @id
+
+    record       = @dup(false)
+    @constructor.records[@id]   = record
+    @constructor.crecords[@cid] = record
+
+    clone        = record.clone()
+    clone.trigger('create', options) if trigger
+    clone.trigger('change', 'create', options) if trigger
+    clone
 
   bind: (events, callback) ->
     @constructor.bind events, binder = (record) =>
