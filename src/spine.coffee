@@ -132,7 +132,7 @@ class Model extends Module
 
     @resetIdCounter()
 
-    @trigger('refresh', not options.clear and @cloneArray(records))
+    @trigger('refresh', @cloneArray(records))
     this
 
   @select: (callback) ->
@@ -321,7 +321,7 @@ class Model extends Module
     result
 
   clone: ->
-    Object.create(@)
+    createObject(@)
 
   reload: ->
     return this if @isNew()
@@ -381,7 +381,7 @@ class Model extends Module
   one: (events, callback) ->
     binder = @bind events, =>
       @constructor.unbind(events, binder)
-      callback.apply(@)
+      callback.apply(@, arguments)
 
   trigger: (args...) ->
     args.splice(1, 0, @)
@@ -409,8 +409,6 @@ class Controller extends Module
     @el.addClass(@className) if @className
     @el.attr(@attributes) if @attributes
 
-    @release -> @el.remove()
-
     @events = @constructor.events unless @events
     @elements = @constructor.elements unless @elements
 
@@ -419,18 +417,21 @@ class Controller extends Module
 
     super
 
-  release: (callback) =>
-    if typeof callback is 'function'
-      @bind 'release', callback
-    else
-      @trigger 'release'
+  release: =>
+    @el.remove()
+    @unbind()
+    @trigger 'release'
 
   $: (selector) -> $(selector, @el)
 
   delegateEvents: (events) ->
     for key, method of events
+
       unless typeof(method) is 'function'
-        method = @proxy(@[method])
+        # Always return true from event handlers
+        method = do (method) => =>
+          @[method].apply(this, arguments)
+          true
 
       match      = key.match(@eventSplitter)
       eventName  = match[1]
@@ -481,11 +482,10 @@ class Controller extends Module
 
 $ = window?.jQuery or window?.Zepto or (element) -> element
 
-unless typeof Object.create is 'function'
-  Object.create = (o) ->
-    Func = ->
-    Func.prototype = o
-    new Func()
+createObject = Object.create or (o) ->
+  Func = ->
+  Func.prototype = o
+  new Func()
 
 isArray = (value) ->
   Object::toString.call(value) is '[object Array]'
