@@ -101,7 +101,7 @@ class Model extends Module
 
   @find: (id) ->
     record = @records[id]
-    if !record and ("#{id}").match(/c-\d+/)
+    if !record and ("#{id}").match(new RegExp("^#{@prefix}\\d+"))
       return @findCID(id)
     throw('Unknown record') unless record
     record.clone()
@@ -132,7 +132,7 @@ class Model extends Module
 
     @resetIdCounter()
 
-    @trigger('refresh', not options.clear and @cloneArray(records))
+    @trigger('refresh', @cloneArray(records))
     this
 
   @select: (callback) ->
@@ -172,9 +172,9 @@ class Model extends Module
     for key, value of @records
       delete @records[key]
 
-  @destroyAll: ->
+  @destroyAll: (options) ->
     for key, value of @records
-      @records[key].destroy()
+      @records[key].destroy(opt)
 
   @update: (id, atts, options) ->
     @find(id).updateAttributes(atts, options)
@@ -226,14 +226,16 @@ class Model extends Module
 
   @idCounter: 0
 
-  @resetIdCounter: ->
-    ids = (
-      for model in @all()
-        model.id[@prefix.length ..] * 1
-    ).sort((x, y) -> x - y)
-    @idCounter = (ids[ids.length - 1] or - 1) + 1
+  @prefix: 'c-'
 
-  @uid: (@prefix = '') ->
+  @resetIdCounter: ->
+    ids        = (model.id for model in @all()).sort((a, b) -> a > b)
+    lastID     = ids[ids.length - 1]
+    lastID     = lastID?.replace?(new RegExp("^#{@prefix}"), '') or lastID
+    lastID     = parseInt(lastID, 10)
+    @idCounter = (lastID + 1) or 0
+
+  @uid: ->
     @prefix + @idCounter++
 
   # Instance
@@ -241,7 +243,7 @@ class Model extends Module
   constructor: (atts) ->
     super
     @load atts if atts
-    @cid or= @constructor.uid('c-')
+    @cid or= @id or @constructor.uid()
 
   isNew: ->
     not @exists()
@@ -277,12 +279,12 @@ class Model extends Module
     unless options.validate is false
       error = @validate()
       if error
-        @trigger('error', error)
+        @trigger('error', error) unless options.trigger is false
         return false
 
-    @trigger('beforeSave', options)
+    @trigger('beforeSave', options) unless options.trigger is false
     record = if @isNew() then @create(options) else @update(options)
-    @trigger('save', options)
+    @trigger('save', options) unless options.trigger is false
     record
 
   updateAttribute: (name, value, options) ->
@@ -301,12 +303,12 @@ class Model extends Module
     @save()
 
   destroy: (options = {}) ->
-    @trigger('beforeDestroy', options)
+    @trigger('beforeDestroy', options) unless options.trigger is false
     delete @constructor.records[@id]
     delete @constructor.crecords[@cid]
     @destroyed = true
-    @trigger('destroy', options)
-    @trigger('change', 'destroy', options)
+    @trigger('destroy', options) unless options.trigger is false
+    @trigger('change', 'destroy', options) unless options.trigger is false
     @unbind()
     this
 
@@ -319,7 +321,7 @@ class Model extends Module
     result
 
   clone: ->
-    Object.create(@)
+    createObject(@)
 
   reload: ->
     return this if @isNew()
@@ -345,16 +347,16 @@ class Model extends Module
   # Private
 
   update: (options) ->
-    @trigger('beforeUpdate', options)
+    @trigger('beforeUpdate', options) unless options.trigger is false
     records = @constructor.records
     records[@id].load @attributes()
     clone = records[@id].clone()
-    clone.trigger('update', options)
-    clone.trigger('change', 'update', options)
+    clone.trigger('update', options) unless options.trigger is false
+    clone.trigger('change', 'update', options) unless options.trigger is false
     clone
 
   create: (options) ->
-    @trigger('beforeCreate', options)
+    @trigger('beforeCreate', options) unless options.trigger is false
     @id          = @cid unless @id
 
     record       = @dup(false)
@@ -362,8 +364,8 @@ class Model extends Module
     @constructor.crecords[@cid] = record
 
     clone        = record.clone()
-    clone.trigger('create', options)
-    clone.trigger('change', 'create', options)
+    clone.trigger('create', options) unless options.trigger is false
+    clone.trigger('change', 'create', options) unless options.trigger is false
     clone
 
   bind: (events, callback) ->
@@ -379,7 +381,7 @@ class Model extends Module
   one: (events, callback) ->
     binder = @bind events, =>
       @constructor.unbind(events, binder)
-      callback.apply(@)
+      callback.apply(@, arguments)
 
   trigger: (args...) ->
     args.splice(1, 0, @)
@@ -407,8 +409,6 @@ class Controller extends Module
     @el.addClass(@className) if @className
     @el.attr(@attributes) if @attributes
 
-    @release -> @el.remove()
-
     @events = @constructor.events unless @events
     @elements = @constructor.elements unless @elements
 
@@ -417,18 +417,21 @@ class Controller extends Module
 
     super
 
-  release: (callback) =>
-    if typeof callback is 'function'
-      @bind 'release', callback
-    else
-      @trigger 'release'
+  release: =>
+    @el.remove()
+    @trigger 'release'
+    @unbind()
 
   $: (selector) -> $(selector, @el)
 
   delegateEvents: (events) ->
     for key, method of events
+
       unless typeof(method) is 'function'
-        method = @proxy(@[method])
+        # Always return true from event handlers
+        method = do (method) => =>
+          @[method].apply(this, arguments)
+          true
 
       match      = key.match(@eventSplitter)
       eventName  = match[1]
@@ -479,11 +482,10 @@ class Controller extends Module
 
 $ = window?.jQuery or window?.Zepto or (element) -> element
 
-unless typeof Object.create is 'function'
-  Object.create = (o) ->
-    Func = ->
-    Func.prototype = o
-    new Func()
+createObject = Object.create or (o) ->
+  Func = ->
+  Func.prototype = o
+  new Func()
 
 isArray = (value) ->
   Object::toString.call(value) is '[object Array]'

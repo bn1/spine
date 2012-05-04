@@ -1,4 +1,4 @@
-Spine ?= require('spine')
+Spine = do -> @Spine ? require 'spine'
 
 Spine.Model.Local =
   extended: ->

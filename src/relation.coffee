@@ -1,4 +1,4 @@
-Spine   = @Spine or require('spine')
+Spine   = do -> @Spine ? require 'spine'
 isArray = Spine.isArray
 require = @require or ((value) -> eval(value))
 
@@ -140,7 +140,7 @@ class Instance extends Spine.Module
     unless value instanceof @model
       value = new @model(value)
     value.save() if value.isNew()
-    @record.__proto__[@fkey] = value and value.id
+    @record[@fkey] = value and value.id
 
 class Singleton extends Spine.Module
   constructor: (options = {}) ->
@@ -219,36 +219,42 @@ Spine.Model.extend
 
 
   foreignKey: (model, name, rev_name) ->
-    rev_name ?= @className.toLowerCase()
-    rev_name = singularize underscore rev_name
+    unless rev_name?
+      rev_name = @className.toLowerCase()
+      rev_name = singularize underscore rev_name
+      rev_name = "#{rev_name}s"
 
     model = require(model) if typeof model is 'string'
-    name ?= model.className.toLowerCase()
-    name = singularize underscore name
+    unless name?
+      name = model.className.toLowerCase()
+      name = singularize underscore name
 
     @belongsTo name, model
-    model.hasMany "#{rev_name}s", @
+    model.hasMany rev_name, @
 
 
   manyToMany: (model, name, rev_name) ->
-    rev_name ?= @className.toLowerCase()
-    rev_name = singularize underscore rev_name
+    unless rev_name?
+      rev_name = @className.toLowerCase()
+      rev_name = singularize underscore rev_name
+      rev_name = "#{rev_name}s"
     rev_model = @
 
     model = require(model) if typeof model is 'string'
-    name ?= model.className.toLowerCase()
-    name = singularize underscore name
+    unless name?
+      name = model.className.toLowerCase()
+      name = singularize underscore name
 
     local = typeof model.loadLocal is 'function' and typeof rev_model.loadLocal is 'function'
 
     class tmpModel extends Spine.Model
-      @configure "_#{rev_name}s_to_#{name}s", "#{@rev_name}_id", "#{@name}_id"
+      @configure "_#{rev_name}_to_#{name}", "#{@rev_name}_id", "#{@name}_id"
       @extend Spine.Model.Local if local
 
     tmpModel.fetch() if local
 
     tmpModel.foreignKey rev_model, "#{rev_name}"
-    tmpModel.foreignKey model, "#{name}"
+    tmpModel.foreignKey model,     "#{name}"
 
 
     association = (record, model, left_to_right) ->
