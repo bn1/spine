@@ -274,7 +274,7 @@ class Model extends Module
         (rec.cid is @cid) or (rec.id and rec.id is @id))
 
   save: (options = {}) ->
-    trigger = !!options.trigger or true
+    trigger = not (options.trigger is false)
     unless options.validate is false
       error = @validate()
       if error
@@ -302,7 +302,7 @@ class Model extends Module
     @save()
 
   destroy: (options = {}) ->
-    trigger = !!options.trigger or true
+    trigger = not (options.trigger is false)
     @trigger('beforeDestroy', options) if trigger
     delete @constructor.records[@id]
     delete @constructor.crecords[@cid]
@@ -347,7 +347,7 @@ class Model extends Module
   # Private
 
   update: (options) ->
-    trigger = !!options.trigger or true
+    trigger = not (options.trigger is false)
     @trigger('beforeUpdate', options) if trigger
     records = @constructor.records
     records[@id].load @attributes()
@@ -357,7 +357,7 @@ class Model extends Module
     clone
 
   create: (options) ->
-    trigger = !!options.trigger or true
+    trigger = not (options.trigger is false)
     @trigger('beforeCreate', options) if trigger
     @id          = @cid unless @id
 
