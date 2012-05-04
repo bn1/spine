@@ -1,5 +1,5 @@
 Spine = do -> @Spine ? require 'spine'
-$      = Spine.$
+$     = Spine.$
 
 class Spine.Manager extends Spine.Module
   @include Spine.Events

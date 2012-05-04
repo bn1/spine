@@ -132,7 +132,7 @@ class Model extends Module
 
     @resetIdCounter()
 
-    @trigger('refresh', @cloneArray(records))
+    @trigger('refresh', @cloneArray(records)) unless options.trigger is false
     this
 
   @select: (callback) ->
@@ -276,15 +276,16 @@ class Model extends Module
         (rec.cid is @cid) or (rec.id and rec.id is @id))
 
   save: (options = {}) ->
+    trigger = not (options.trigger is false)
     unless options.validate is false
       error = @validate()
       if error
-        @trigger('error', error) unless options.trigger is false
+        @trigger('error', error) if trigger
         return false
 
-    @trigger('beforeSave', options) unless options.trigger is false
+    @trigger('beforeSave', options) if trigger
     record = if @isNew() then @create(options) else @update(options)
-    @trigger('save', options) unless options.trigger is false
+    @trigger('save', options) if trigger
     record
 
   updateAttribute: (name, value, options) ->
@@ -303,12 +304,13 @@ class Model extends Module
     @save()
 
   destroy: (options = {}) ->
-    @trigger('beforeDestroy', options) unless options.trigger is false
+    trigger = not (options.trigger is false)
+    @trigger('beforeDestroy', options) if trigger
     delete @constructor.records[@id]
     delete @constructor.crecords[@cid]
     @destroyed = true
-    @trigger('destroy', options) unless options.trigger is false
-    @trigger('change', 'destroy', options) unless options.trigger is false
+    @trigger('destroy', options) if trigger
+    @trigger('change', 'destroy', options) if trigger
     @unbind()
     this
 
@@ -347,16 +349,18 @@ class Model extends Module
   # Private
 
   update: (options) ->
-    @trigger('beforeUpdate', options) unless options.trigger is false
+    trigger = not (options.trigger is false)
+    @trigger('beforeUpdate', options) if trigger
     records = @constructor.records
     records[@id].load @attributes()
     clone = records[@id].clone()
-    clone.trigger('update', options) unless options.trigger is false
-    clone.trigger('change', 'update', options) unless options.trigger is false
+    clone.trigger('update', options) if trigger
+    clone.trigger('change', 'update', options) if trigger
     clone
 
   create: (options) ->
-    @trigger('beforeCreate', options) unless options.trigger is false
+    trigger = not (options.trigger is false)
+    @trigger('beforeCreate', options) if trigger
     @id          = @cid unless @id
 
     record       = @dup(false)
@@ -364,8 +368,8 @@ class Model extends Module
     @constructor.crecords[@cid] = record
 
     clone        = record.clone()
-    clone.trigger('create', options) unless options.trigger is false
-    clone.trigger('change', 'create', options) unless options.trigger is false
+    clone.trigger('create', options) if trigger
+    clone.trigger('change', 'create', options) if trigger
     clone
 
   bind: (events, callback) ->
@@ -419,8 +423,8 @@ class Controller extends Module
 
   release: =>
     @el.remove()
-    @trigger 'release'
     @unbind()
+    @trigger 'release'
 
   $: (selector) -> $(selector, @el)
 
