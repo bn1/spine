@@ -136,7 +136,7 @@ class Model extends Module
     this
 
   @select: (callback) ->
-    result = (record for id, record of @records when callback(record))
+    result = (record for record in @recordsValues() when callback(record))
     @cloneArray(result)
 
   @findByAttribute: (name, value) ->
@@ -221,8 +221,14 @@ class Model extends Module
       result.push(value)
     result
 
+  @model: @
   @cloneArray: (array) ->
-    (value.clone() for value in array)
+    res = (value.clone() for value in array)
+    $.extend res, @model
+    res.recordsValues = () ->
+      @
+
+    res
 
   @idCounter: 0
 
