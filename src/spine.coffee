@@ -221,12 +221,15 @@ class Model extends Module
       result.push(value)
     result
 
-  @model: @
+  @is_queryset: false
   @cloneArray: (array) ->
+    @model = @ unless @is_queryset
+
     res = (value.clone() for value in array)
     $.extend res, @model
-    res.recordsValues = () ->
-      @
+    
+    res.recordsValues = () -> @
+    res.is_queryset = true
 
     res
 
