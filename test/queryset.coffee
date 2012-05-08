@@ -24,62 +24,62 @@ describe "Queryset", ->
 
   Product = undefined
 
-  Spine.Model.extend
-    delete: (options={}) ->
-      unless @is_queryset
-        @destroyAll options
-        @deleteAll()
-
-      else
-        for item in @
-          item.destroy()
-          delete  @records[item.id]
-          delete @crecords[item.cid]
-
-
-    __filter: (args, revert=false) ->
-      (rec) ->
-        f = !!revert
-
-        for key, value of args
-          return f unless rec[key] is value
-
-        return !f
-
-
-    filter: (args) ->  @select @__filter args, false
-    exclude: (args) -> @select @__filter args, true
-
-
-    order_by: (keys...) ->
-      if keys.length > 1
-        ref = @
-        for key in keys.reverse()
-          ref = ref.order_by(key)
-
-        ref
-
-      else
-        @all().sort((x, y) ->
-          key = keys[0]
-          result = 1
-          rev = false
-
-          if key[0] is '-'
-            key = key[1..]
-            rev = true
-
-          result *= -1 if x[key] < y[key]
-          result  =  1 if x[key] is null
-          result  = -1 if y[key] is null
-          result  =  0 if x[key] is y[key]
-
-          result *= -1 if rev
-
-          return result
-        )
-
   beforeEach ->
+    Spine.Model.extend
+      delete: (options={}) ->
+        unless @is_queryset
+          @destroyAll options
+          @deleteAll()
+
+        else
+          for item in @
+            item.destroy()
+            delete  @records[item.id]
+            delete @crecords[item.cid]
+
+
+      __filter: (args, revert=false) ->
+        (rec) ->
+          f = !!revert
+
+          for key, value of args
+            return f unless rec[key] is value
+
+          return !f
+
+
+      filter: (args) ->  @select @__filter args, false
+      exclude: (args) -> @select @__filter args, true
+
+
+      order_by: (keys...) ->
+        if keys.length > 1
+          ref = @
+          for key in keys.reverse()
+            ref = ref.order_by(key)
+
+          ref
+
+        else
+          @all().sort((x, y) ->
+            key = keys[0]
+            result = 1
+            rev = false
+
+            if key[0] is '-'
+              key = key[1..]
+              rev = true
+
+            result *= -1 if x[key] < y[key]
+            result  =  1 if x[key] is null
+            result  = -1 if y[key] is null
+            result  =  0 if x[key] is y[key]
+
+            result *= -1 if rev
+
+            return result
+          )
+
     Product = Spine.Model.setup('Product', ["name", "price"])
     Product.refresh([
       {name: 'product1', price: 5}
@@ -92,7 +92,7 @@ describe "Queryset", ->
   it 'should recognize queryset', ->
     Product.is_queryset.should.equal false
     Product.all().is_queryset.should.equal true
-
+    
   it 'should filter results', ->
     Product.filter(price: 3).length.should.equal 2
     Product.filter(price: 1).length.should.equal 1
