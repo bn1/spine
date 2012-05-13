@@ -176,10 +176,8 @@ Spine.Model.extend
     association = (record) ->
       model = require(model) if typeof model is 'string'
 
-      new Collection(
-        name: name, model: model,
-        record: record, fkey: fkey
-      )
+      q = {}; q[fkey] = record.id
+      model.filter(q)
 
     @::[name] = (value) ->
       association(@).refresh(value) if value?

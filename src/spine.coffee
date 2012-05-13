@@ -156,6 +156,46 @@ class Model extends Module
   @all: ->
     @cloneArray(@recordsValues())
 
+  @delete: (options={}) ->
+    @destroyAll options
+    @deleteAll()
+  
+  @__filter: (args, revert=false) ->
+    (rec) ->
+      q = !!revert
+      for key, value of args
+        return q unless rec[key] is value
+      !q
+
+  @filter: (args) ->  @select @__filter args, false
+  @exclude: (args) -> @select @__filter args, true
+
+  @order_by: (keys...) ->
+    if len(keys) > 1
+      ref = @
+      for key in keys.reverse()
+        ref = ref.order_by(key)
+      ref
+
+    else
+      @all().sort (x, y) ->
+        key = keys[0]
+        result = 1
+        rev = false
+
+        if key[0] is '-'
+          key = key[1..]
+          rev = true
+
+        result *= -1 if x[key] < y[key]
+        result  =  1 if x[key] is null
+        result  = -1 if y[key] is null
+        result  =  0 if x[key] is y[key]
+
+        result *= -1 if rev
+
+        return result
+
   @first: ->
     record = @recordsValues()[0]
     record?.clone()
@@ -180,7 +220,8 @@ class Model extends Module
     @find(id).updateAttributes(atts, options)
 
   @create: (atts, options) ->
-    record = new @(atts)
+    unless @is_queryset then record = new @(atts)
+    else   record = new @model(atts)
     record.save(options)
 
   @destroy: (id, options) ->
