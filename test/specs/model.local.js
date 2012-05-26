@@ -15,12 +15,12 @@ describe("Model.Local", function(){
   });
 
   it("should reset ID counter", function(){
-    User.refresh([{name: "Bob", id: 1}]);
+    User.refresh([{name: "Bob", cid: 1}]);
     expect(User.idCounter).toEqual(2);
   });
 
   it("should work with non string IDs", function(){
-    User.refresh([{name: "Bob", id: "b"}]);
+    User.refresh([{name: "Bob", cid: "b"}]);
     expect(User.idCounter).toEqual(0);
   });
 
@@ -30,7 +30,7 @@ describe("Model.Local", function(){
       {name: "Bob", id: "c-3"},
       {name: "Bob", id: "c-2"}
     ]);
-    expect(User.idCounter).toEqual(4);
+    expect(User.idCounter).toEqual(3);
   });
 
   it("should work with a blank refresh", function(){

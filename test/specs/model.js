@@ -327,6 +327,21 @@ describe("Model", function(){
     expect(asset1.eql(asset2)).not.toBeTruthy();
   });
 
+  it("should generate unique cIDs", function(){
+      Asset.refresh({name: "Bob", id: 3});
+      Asset.refresh({name: "Bob", id: 2});
+      Asset.refresh({name: "Bob", id: 1});
+      expect(Asset.find(2).eql(Asset.find(1))).not.toBeTruthy();
+  });
+
+  it("should handle more than 10 cIDs correctly", function(){
+      for (i=0; i < 12; i++) {
+        Asset.refresh({name: "Bob", id: i});    
+      }
+      expect(Asset.idCounter).toEqual(12);
+  });
+
+
   describe("with spy", function(){
     var spy;
 

@@ -282,7 +282,7 @@ class Model extends Module
   @prefix: 'c-'
 
   @resetIdCounter: ->
-    ids        = (model.id for model in @all()).sort((a, b) -> a > b)
+    ids        = (model.cid for model in @all()).sort((a, b) -> a > b)
     lastID     = ids[ids.length - 1]
     lastID     = lastID?.replace?(new RegExp("^#{@prefix}"), '') or lastID
     lastID     = parseInt(lastID, 10)
@@ -475,17 +475,21 @@ class Controller extends Module
     super
 
   release: =>
+    @trigger 'release'
     @el.remove()
     @unbind()
-    @trigger 'release'
 
   $: (selector) -> $(selector, @el)
 
   delegateEvents: (events) ->
     for key, method of events
 
-      unless typeof(method) is 'function'
+      if typeof(method) is 'function'
         # Always return true from event handlers
+        method = do (method) => =>
+          method.apply(this, arguments)
+          true
+      else
         method = do (method) => =>
           @[method].apply(this, arguments)
           true
