@@ -1,6 +1,7 @@
 Spine = do -> @Spine ? require 'spine'
 $     = Spine.$
 
+
 class Spine.List extends Spine.Controller
   events:
     'click .item': 'click'
@@ -22,7 +23,7 @@ class Spine.List extends Spine.Controller
       return
 
     @children().removeClass('active')
-    $(@children().get(@items.indexOf(@current))).addClass('active')
+    $(@children().get( (item.id for item in @items).indexOf(@current.id) )).addClass('active')
 
   render: (items) ->
     @items = items if items
@@ -36,7 +37,7 @@ class Spine.List extends Spine.Controller
     @el.children(sel)
 
   click: (e) ->
-    item = @items[$(e.currentTarget).index()]
+    item = @items[@el.find('.item').index( $(e.currentTarget) )]
     @trigger('change', item)
     true
 

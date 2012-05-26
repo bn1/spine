@@ -187,10 +187,13 @@ class Model extends Module
           key = key[1..]
           rev = true
 
-        result *= -1 if x[key] < y[key]
-        result  =  1 if x[key] is null
-        result  = -1 if y[key] is null
-        result  =  0 if x[key] is y[key]
+        x = if typeof x[key] is 'function' then x[key]() else x[key]
+        y = if typeof y[key] is 'function' then y[key]() else y[key]
+
+        result *= -1 if x < y
+        result  =  1 if x is null
+        result  = -1 if y is null
+        result  =  0 if x is y
 
         result *= -1 if rev
 
@@ -209,12 +212,12 @@ class Model extends Module
     @recordsValues().length
 
   @deleteAll: ->
-    for key, value of @records
-      delete @records[key]
+    for record in @recordsValues()
+      delete @records[record.id]
 
   @destroyAll: (options) ->
-    for key, value of @records
-      @records[key].destroy(options)
+    for record in @recordsValues()
+      record.destroy(options)
 
   @update: (id, atts, options) ->
     @find(id).updateAttributes(atts, options)

@@ -14,6 +14,7 @@ describe "Queryset", ->
       global.window.jQuery ?= require('jQuery').create(window)
 
       global.Spine ?= require '../src/spine'
+      require '../../../app/lib/extras'
       $ = jQuery = Spine.$
 
       done()
@@ -25,61 +26,6 @@ describe "Queryset", ->
   Product = undefined
 
   beforeEach ->
-    Spine.Model.extend
-      delete: (options={}) ->
-        unless @is_queryset
-          @destroyAll options
-          @deleteAll()
-
-        else
-          for item in @
-            item.destroy()
-            delete  @records[item.id]
-            delete @crecords[item.cid]
-
-
-      __filter: (args, revert=false) ->
-        (rec) ->
-          f = !!revert
-
-          for key, value of args
-            return f unless rec[key] is value
-
-          return !f
-
-
-      filter: (args) ->  @select @__filter args, false
-      exclude: (args) -> @select @__filter args, true
-
-
-      order_by: (keys...) ->
-        if keys.length > 1
-          ref = @
-          for key in keys.reverse()
-            ref = ref.order_by(key)
-
-          ref
-
-        else
-          @all().sort((x, y) ->
-            key = keys[0]
-            result = 1
-            rev = false
-
-            if key[0] is '-'
-              key = key[1..]
-              rev = true
-
-            result *= -1 if x[key] < y[key]
-            result  =  1 if x[key] is null
-            result  = -1 if y[key] is null
-            result  =  0 if x[key] is y[key]
-
-            result *= -1 if rev
-
-            return result
-          )
-
     Product = Spine.Model.setup('Product', ["name", "price"])
     Product.refresh([
       {name: 'product1', price: 5}
@@ -97,6 +43,11 @@ describe "Queryset", ->
     Product.filter(price: 3).length.should.equal 2
     Product.filter(price: 1).length.should.equal 1
     Product.filter(price: 5).length.should.equal 2
+
+  it 'should exclude results', ->
+    Product.exclude(price: 5).length.should.equal 3
+    Product.exclude(price: 3).length.should.equal 3
+    Product.exclude(price: 1).length.should.equal 4
 
   it 'should chain filters', ->
     Product.filter(price: 5).filter(price: 3).length.should.equal 0
@@ -121,36 +72,86 @@ describe "Queryset", ->
     ordered[4].name.should.equal 'product1'
 
   it 'can chain ordering', ->
-    ordered = Product.order_by('price', 'name')
+    ordered = Product.order_by('price', '-name')
 
     ordered[0].price.should.equal 1
     ordered[0].name.should.equal 'product5'
 
     ordered[1].price.should.equal 3
-    ordered[1].name.should.equal 'product3'
-    ordered[2].price.should.equal 3
-    ordered[2].name.should.equal 'product4'
-
-    ordered[3].price.should.equal 5
-    ordered[3].name.should.equal 'product1'
-    ordered[4].price.should.equal 5
-    ordered[4].name.should.equal 'product2'
-
-  it 'can mix ordering', ->
-    ordered = Product.order_by('-price', 'name')
-
-    ordered[0].price.should.equal 5
-    ordered[0].name.should.equal 'product1'
-    ordered[1].price.should.equal 5
-    ordered[1].name.should.equal 'product2'
-
+    ordered[1].name.should.equal 'product4'
     ordered[2].price.should.equal 3
     ordered[2].name.should.equal 'product3'
+
+    ordered[3].price.should.equal 5
+    ordered[3].name.should.equal 'product2'
+    ordered[4].price.should.equal 5
+    ordered[4].name.should.equal 'product1'
+
+  it 'can mix ordering', ->
+    ordered = Product.order_by('-price', '-name')
+
+    ordered[0].price.should.equal 5
+    ordered[0].name.should.equal 'product2'
+    ordered[1].price.should.equal 5
+    ordered[1].name.should.equal 'product1'
+
+    ordered[2].price.should.equal 3
+    ordered[2].name.should.equal 'product4'
     ordered[3].price.should.equal 3
-    ordered[3].name.should.equal 'product4'
+    ordered[3].name.should.equal 'product3'
 
     ordered[4].price.should.equal 1
     ordered[4].name.should.equal 'product5'
+
+  it 'can do all ordering with functions', ->
+    Product::return_price = -> @price
+
+    ordered = Product.order_by('-return_price')
+
+    ordered[0].return_price().should.equal 5
+    ordered[1].return_price().should.equal 5
+
+    ordered[2].return_price().should.equal 3
+    ordered[3].return_price().should.equal 3
+
+    ordered[4].return_price().should.equal 1
+
+  it 'can also do mix ordering with functions', ->
+    Product::return_price = -> @price
+    Product::return_name = -> @name
+
+    ordered = Product.order_by('-return_price', '-return_name')
+
+    ordered[0].return_price().should.equal 5
+    ordered[0].return_name().should.equal 'product2'
+    ordered[1].return_price().should.equal 5
+    ordered[1].return_name().should.equal 'product1'
+
+    ordered[2].return_price().should.equal 3
+    ordered[2].return_name().should.equal 'product4'
+    ordered[3].return_price().should.equal 3
+    ordered[3].return_name().should.equal 'product3'
+
+    ordered[4].return_price().should.equal 1
+    ordered[4].return_name().should.equal 'product5'
+
+  it 'can also mix functions ordering with classic field\'s ordering', ->
+    Product::return_name = -> @name
+
+    ordered = Product.order_by('-price', '-return_name')
+
+    ordered[0].price.should.equal 5
+    ordered[0].return_name().should.equal 'product2'
+    ordered[1].price.should.equal 5
+    ordered[1].return_name().should.equal 'product1'
+
+    ordered[2].price.should.equal 3
+    ordered[2].return_name().should.equal 'product4'
+    ordered[3].price.should.equal 3
+    ordered[3].return_name().should.equal 'product3'
+
+    ordered[4].price.should.equal 1
+    ordered[4].return_name().should.equal 'product5'
 
   it 'can delete items', ->
     Product.all().delete()
