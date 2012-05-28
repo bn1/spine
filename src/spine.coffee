@@ -130,9 +130,7 @@ class Model extends Module
       @records[record.id]   = record
       @crecords[record.cid] = record
 
-    @resetIdCounter()
-
-    @trigger('refresh', @cloneArray(records)) unless options.trigger is false
+    @trigger('refresh', @cloneArray(records))
     this
 
   @select: (callback) ->
@@ -279,24 +277,15 @@ class Model extends Module
 
   @idCounter: 0
 
-  @prefix: 'c-'
-
-  @resetIdCounter: ->
-    ids        = (model.cid for model in @all()).sort((a, b) -> a > b)
-    lastID     = ids[ids.length - 1]
-    lastID     = lastID?.replace?(new RegExp("^#{@prefix}"), '') or lastID
-    lastID     = parseInt(lastID, 10)
-    @idCounter = (lastID + 1) or 0
-
-  @uid: ->
-    @prefix + @idCounter++
+  @uid: (prefix = '') ->
+    prefix + @idCounter++
 
   # Instance
 
   constructor: (atts) ->
     super
     @load atts if atts
-    @cid or= @id or @constructor.uid()
+    @cid = @constructor.uid('c-')
 
   isNew: ->
     not @exists()
